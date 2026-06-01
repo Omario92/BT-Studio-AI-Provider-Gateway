@@ -1,0 +1,49 @@
+{
+  "name": "bt-studio-ai-provider-gateway",
+  "version": "1.0.0",
+  "description": "Isolated API gateway for multi-provider AI execution in BT Studio",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "start:prod": "npx prisma migrate deploy && node dist/server.js",
+    "type-check": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "smoke:comfyui-health": "tsx scripts/comfyui-health.ts",
+    "smoke:comfyui-upscale": "tsx scripts/comfyui-test-upscale.ts",
+    "smoke:gateway-job": "tsx scripts/gateway-job-test.ts"
+  },
+  "keywords": [
+    "fastify",
+    "typescript",
+    "comfyui",
+    "ai",
+    "gateway"
+  ],
+  "author": "Antigravity Agent",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@prisma/client": "^5.14.0",
+    "axios": "^1.6.8",
+    "bullmq": "^5.8.2",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.26.2",
+    "ioredis": "^5.4.1",
+    "pino": "^9.1.0",
+    "prisma": "^5.14.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "pino-pretty": "^11.1.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

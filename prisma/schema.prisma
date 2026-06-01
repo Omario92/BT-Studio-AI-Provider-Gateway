@@ -1,0 +1,107 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum AIProviderType {
+  COMFYUI
+  RUNPOD
+  OPENAI_IMAGE
+  GEMINI_IMAGE
+  MOCK
+}
+
+enum AIToolType {
+  IMAGE_GENERATION
+  IMAGE_UPSCALE
+  IMAGE_EDIT
+  IMAGE_VARIATION
+  REMOVE_BACKGROUND
+  RELIGHT
+  VIDEO_GENERATION
+  VIDEO_UPSCALE
+  AUDIO_GENERATION
+  TRANSCRIBE
+}
+
+enum GatewayJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+}
+
+model ProviderConfig {
+  id        String         @id @default(uuid())
+  provider  AIProviderType @unique
+  name      String
+  baseUrl   String
+  isEnabled Boolean        @default(true)
+  config    Json?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model AIWorkflow {
+  id              String              @id @default(uuid())
+  slug            String              @unique
+  name            String
+  provider        AIProviderType
+  toolType        AIToolType
+  activeVersionId String?
+  description     String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  versions        AIWorkflowVersion[]
+}
+
+model AIWorkflowVersion {
+  id           String     @id @default(uuid())
+  workflowId   String
+  version      Int
+  config       Json
+  bindings     Json?
+  inputSchema  Json?
+  outputSchema Json?
+  notes        String?
+  isActive     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  workflow     AIWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
+}
+
+model GatewayJob {
+  id                 String           @id @default(uuid())
+  externalJobId      String?
+  provider           AIProviderType
+  toolType           AIToolType
+  workflowSlug       String?
+  workflowVersion    Int?
+  status             GatewayJobStatus @default(QUEUED)
+  progress           Int              @default(0)
+  input              Json
+  output             Json?
+  error              Json?
+  providerJobId      String?
+  callbackUrl        String?
+  callbackSecretHash String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  completedAt        DateTime?
+}
+
+model GatewayJobLog {
+  id        String   @id @default(uuid())
+  jobId     String
+  level     String
+  message   String
+  data      Json?
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://gateway:gateway123@postgres:5432/ai_gateway?schema=public
+      - REDIS_URL=redis://redis:6379
+      - AI_GATEWAY_API_KEY=studio-gateway-secret-key-2026
+      - AI_GATEWAY_CALLBACK_SECRET=callback-hmac-sha256-signing-secret
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=gateway
+      - POSTGRES_PASSWORD=gateway123
+      - POSTGRES_DB=ai_gateway
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
