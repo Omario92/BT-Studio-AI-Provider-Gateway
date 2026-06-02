@@ -40,6 +40,7 @@ const envSchema = z.object({
   GEMINI_IMAGE_MODEL: z.string().default('imagen-4.0-generate-preview-06-06'),
 
   WORKFLOW_STORAGE_MODE: z.enum(['database', 'file', 'url']).default('database'),
+  COMFYUI_UPSCALE_WORKFLOW_URL: z.string().optional().default(''),
   DISABLE_MOCK_PROVIDER: z.preprocess(
     (val) => val === 'true' || val === true,
     z.boolean()

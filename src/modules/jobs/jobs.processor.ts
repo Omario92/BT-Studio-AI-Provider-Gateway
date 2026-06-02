@@ -6,6 +6,18 @@ import { ProviderFactory } from '../providers/provider.factory';
 import { CallbacksService } from '../callbacks/callbacks.service';
 import { GatewayJobStatus, GatewayJob } from '@prisma/client';
 import { env } from '../../config/env';
+import axios from 'axios';
+
+function getDirectDownloadUrl(url: string): string {
+  const trimmed = url.trim();
+  if (trimmed.includes('drive.google.com')) {
+    const match = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+    }
+  }
+  return trimmed;
+}
 
 /**
  * Log message helper to store DB logs for Gateway Jobs
@@ -56,43 +68,65 @@ export const jobsWorker = new Worker(
 
       if (gatewayJob.workflowSlug) {
         await addJobLog(gatewayJobId, 'info', `Loading workflow config for: ${gatewayJob.workflowSlug}`);
-        const workflow = await prisma.aIWorkflow.findUnique({
-          where: { slug: gatewayJob.workflowSlug },
-        });
 
-        if (!workflow) {
-          throw new Error(`AIWorkflow slug '${gatewayJob.workflowSlug}' not found`);
-        }
-
-        let versionId = workflow.activeVersionId;
-        if (gatewayJob.workflowVersion && gatewayJob.workflowVersion !== 0) {
-          const specific = await prisma.aIWorkflowVersion.findUnique({
-            where: {
-              workflowId_version: {
-                workflowId: workflow.id,
-                version: gatewayJob.workflowVersion,
-              },
-            },
-          });
-          if (specific) {
-            versionId = specific.id;
+        // Dynamic workflow URL check (Google Drive / public URL)
+        if (gatewayJob.workflowSlug === 'comfyui_image_upscale_default' && env.COMFYUI_UPSCALE_WORKFLOW_URL) {
+          try {
+            const dlUrl = getDirectDownloadUrl(env.COMFYUI_UPSCALE_WORKFLOW_URL);
+            await addJobLog(gatewayJobId, 'info', `Downloading dynamic upscale workflow from URL: ${dlUrl}`);
+            const workflowRes = await axios.get(dlUrl, { timeout: 10000 });
+            workflowConfig = workflowRes.data;
+            bindings = {
+              sourceImage: { nodeId: '236', path: 'image' },
+              filenamePrefix: { nodeId: '252', path: 'filename_prefix' },
+              scale: { nodeId: '237', path: 'value' },
+              denoise: { nodeId: '266', path: 'value' }
+            };
+            await addJobLog(gatewayJobId, 'info', 'Successfully resolved workflow config dynamically from URL');
+          } catch (urlErr: any) {
+            await addJobLog(gatewayJobId, 'warn', `Failed to download dynamic workflow: ${urlErr.message}. Falling back to db lookup.`);
           }
         }
 
-        if (!versionId) {
-          throw new Error(`No active or specific version found for workflow '${gatewayJob.workflowSlug}'`);
+        if (!workflowConfig) {
+          const workflow = await prisma.aIWorkflow.findUnique({
+            where: { slug: gatewayJob.workflowSlug },
+          });
+
+          if (!workflow) {
+            throw new Error(`AIWorkflow slug '${gatewayJob.workflowSlug}' not found`);
+          }
+
+          let versionId = workflow.activeVersionId;
+          if (gatewayJob.workflowVersion && gatewayJob.workflowVersion !== 0) {
+            const specific = await prisma.aIWorkflowVersion.findUnique({
+              where: {
+                workflowId_version: {
+                  workflowId: workflow.id,
+                  version: gatewayJob.workflowVersion,
+                },
+              },
+            });
+            if (specific) {
+              versionId = specific.id;
+            }
+          }
+
+          if (!versionId) {
+            throw new Error(`No active or specific version found for workflow '${gatewayJob.workflowSlug}'`);
+          }
+
+          const version = await prisma.aIWorkflowVersion.findUnique({
+            where: { id: versionId },
+          });
+
+          if (!version) {
+            throw new Error(`AIWorkflowVersion not found for ID: ${versionId}`);
+          }
+
+          workflowConfig = version.config;
+          bindings = version.bindings;
         }
-
-        const version = await prisma.aIWorkflowVersion.findUnique({
-          where: { id: versionId },
-        });
-
-        if (!version) {
-          throw new Error(`AIWorkflowVersion not found for ID: ${versionId}`);
-        }
-
-        workflowConfig = version.config;
-        bindings = version.bindings;
       }
 
       // 4. Resolve provider
