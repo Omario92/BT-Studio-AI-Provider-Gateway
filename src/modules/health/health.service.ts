@@ -7,9 +7,10 @@ import { NotFoundError } from '../../lib/errors';
 export class HealthService {
   static async checkGeneralHealth() {
     return {
-      status: 'OK',
-      timestamp: new Date(),
+      status: 'ok',
+      service: 'ai-provider-gateway',
       uptime: process.uptime(),
+      timestamp: new Date(),
     };
   }
 

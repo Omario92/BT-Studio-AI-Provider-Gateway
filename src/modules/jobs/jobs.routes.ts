@@ -9,7 +9,22 @@ export async function jobsRoutes(app: FastifyInstance) {
   app.addHook('preHandler', async (request, reply) => {
     const key = request.headers['x-ai-gateway-key'];
     if (key !== env.AI_GATEWAY_API_KEY) {
-      reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+      return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+    }
+  });
+
+  // POST /jobs/test-accept
+  app.post('/test-accept', async (request, reply) => {
+    try {
+      const job = await JobsService.createJob({
+        externalJobId: 'test-accept-' + Date.now(),
+        provider: AIProviderType.MOCK,
+        toolType: AIToolType.IMAGE_UPSCALE,
+        inputs: { sourceFileUrl: 'https://example.com/a.png', scale: 2 },
+      });
+      return reply.code(202).send({ job });
+    } catch (err: any) {
+      return reply.code(err.statusCode || 500).send({ error: err.message, code: err.code });
     }
   });
 

@@ -5,6 +5,9 @@ import { workflowsRoutes } from './modules/workflows/workflows.routes';
 import { jobsRoutes } from './modules/jobs/jobs.routes';
 import { HttpError } from './lib/errors';
 import { logger } from './lib/logger';
+import { env } from './config/env';
+
+import * as crypto from 'crypto';
 
 export const app: FastifyInstance = fastify({
   logger: false, // Use our own custom logger
@@ -20,12 +23,64 @@ app.register(cors, {
 
 // Request logging hook
 app.addHook('onRequest', async (request) => {
-  logger.info({ method: request.method, url: request.url }, 'Incoming Request');
+  const rawId = request.headers['x-request-id'];
+  const requestId = typeof rawId === 'string' && rawId ? rawId : crypto.randomUUID();
+  (request as any).requestId = requestId;
+
+  logger.info({
+    requestId,
+    method: request.method,
+    url: request.url,
+    userAgent: request.headers['user-agent'],
+    remoteAddress: request.ip,
+  }, 'Incoming Request');
 });
 
 // Response logging hook
 app.addHook('onResponse', async (request, reply) => {
-  logger.info({ method: request.method, url: request.url, statusCode: reply.statusCode, time: `${reply.getResponseTime()}ms` }, 'Request Processed');
+  const requestId = (request as any).requestId;
+  logger.info({
+    requestId,
+    method: request.method,
+    url: request.url,
+    statusCode: reply.statusCode,
+    timeMs: reply.getResponseTime(),
+  }, 'Request Processed');
+});
+
+// Root Route
+app.get('/', async () => {
+  return {
+    name: 'BT Studio AI Provider Gateway',
+    status: 'ok',
+    routes: ['/health', '/jobs', '/workflows'],
+  };
+});
+
+// Safe Environment Debug Route
+app.get('/debug/env-safe', async (request, reply) => {
+  const key = request.headers['x-ai-gateway-key'];
+  if (key !== env.AI_GATEWAY_API_KEY) {
+    return reply.code(401).send({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+  }
+
+  let comfyBaseUrlHost = 'N/A';
+  try {
+    if (env.COMFYUI_BASE_URL) {
+      comfyBaseUrlHost = new URL(env.COMFYUI_BASE_URL).host;
+    }
+  } catch (e) {}
+
+  return {
+    port: env.PORT,
+    nodeEnv: env.NODE_ENV,
+    hasDatabaseUrl: !!env.DATABASE_URL,
+    hasRedisUrl: !!env.REDIS_URL,
+    hasComfyBaseUrl: !!env.COMFYUI_BASE_URL,
+    comfyBaseUrlHost,
+    workflowStorageMode: env.WORKFLOW_STORAGE_MODE,
+    disableMockProvider: env.DISABLE_MOCK_PROVIDER,
+  };
 });
 
 // Register Routers
