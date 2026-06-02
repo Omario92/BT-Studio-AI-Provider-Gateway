@@ -24,4 +24,5 @@ Welcome! This file guides AI coding agents in maintaining a clean, high-performa
 
 ## Recent Changes
 
+- **2026-06-02**: Installed OpenSSL in the Alpine runner stage of the `Dockerfile` to prevent Prisma native engine failures during database migrations and server startup.
 - **2026-06-01**: Initial repository audit, created `AGENTS.md` to define workspace guidelines, and prepared to push code.
