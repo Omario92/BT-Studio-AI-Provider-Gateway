@@ -24,6 +24,7 @@ Welcome! This file guides AI coding agents in maintaining a clean, high-performa
 
 ## Recent Changes
 
+- **2026-06-02**: Added dynamic resolution check for `pino-pretty` in `src/lib/logger.ts` to gracefully fallback to standard JSON logging in production/pruned environments, preventing logger startup crashes.
 - **2026-06-02**: Configured environment validation in `src/config/env.ts` to fall back to default placeholders for key variables, preventing deployment startup crashes if they are not yet configured in the dashboard.
 - **2026-06-02**: Moved database migrations to `preDeployCommand` and increased the healthcheck timeout to 300 seconds in `railway.json` to prevent module initialization timeouts caused by Redis connection retries.
 - **2026-06-02**: Installed OpenSSL in the Alpine runner stage of the `Dockerfile` to prevent Prisma native engine failures during database migrations and server startup.

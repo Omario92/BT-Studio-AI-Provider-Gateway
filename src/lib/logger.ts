@@ -1,7 +1,15 @@
 import pino from 'pino';
 import { env } from '../config/env';
 
-const isDev = env.NODE_ENV === 'development';
+let canUsePretty = false;
+try {
+  require.resolve('pino-pretty');
+  canUsePretty = true;
+} catch {
+  // pino-pretty is not available in production environments
+}
+
+const isDev = env.NODE_ENV === 'development' && canUsePretty;
 
 export const logger = pino({
   level: env.LOG_LEVEL,
